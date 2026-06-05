@@ -1,17 +1,17 @@
 <?php
 // addnote.php - Add a new note
+session_start();
 require_once 'db.php';
 
 $user = null;
-// Authenticating user (Vulnerability 2: based solely on cookie)
-if (isset($_COOKIE['loggedin'])) {
-    $user_id = $_COOKIE['loggedin'];
+
+if (isset($_SESSION['user_id'])) {
     try {
         $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$user_id]);
+        $stmt->execute([$_SESSION['user_id']]);
         $user = $stmt->fetch();
     } catch (PDOException $e) {
-        // Silent fail
+        $user = null;
     }
 }
 
@@ -21,7 +21,6 @@ if (!$user) {
 }
 
 $error = "";
-$success = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
@@ -33,10 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $db->prepare("INSERT INTO notes (user_id, title, content) VALUES (?, ?, ?)");
             $stmt->execute([$user['id'], $title, $content]);
+
             header("Location: index.php");
             exit;
         } catch (PDOException $e) {
-            $error = "Failed to add note: " . $e->getMessage();
+            $error = "Failed to add note.";
         }
     }
 }
@@ -56,7 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
         <div class="container">
             <div class="navbar-brand">
@@ -67,7 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="navbar-menu">
                 <div class="navbar-end">
                     <div class="navbar-item">
-                        <span class="has-text-light">Logged in as: <strong><?php echo htmlspecialchars($user['username']); ?></strong></span>
+                        <span class="has-text-light">
+                            Logged in as: <strong><?php echo htmlspecialchars($user['username']); ?></strong>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -114,3 +115,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </section>
 </body>
 </html>
+
