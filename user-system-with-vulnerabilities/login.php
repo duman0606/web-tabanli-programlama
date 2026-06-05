@@ -1,37 +1,32 @@
 <?php
 // login.php - User login page
+session_start();
 require_once 'db.php';
 
 $error = "";
 
-// Vulnerability 5: Check login inputs from GET parameters
-if (isset($_GET['username']) && isset($_GET['password'])) {
-    $username = trim($_GET['username']);
-    $password = $_GET['password'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
 
     if (empty($username) || empty($password)) {
         $error = "Please enter both username and password.";
     } else {
         try {
-            // Vulnerability 1: Truncate password to first 5 characters and hash (sha256) without salt
-            $truncated_password = substr($password, 0, 5);
-            $hashed_password = hash('sha256', $truncated_password);
-
-            $stmt = $db->prepare("SELECT * FROM users WHERE username = ? AND password = ?");
-            $stmt->execute([$username, $hashed_password]);
+            $stmt = $db->prepare("SELECT * FROM users WHERE username = ?");
+            $stmt->execute([$username]);
             $user = $stmt->fetch();
 
-            if ($user) {
-                // Vulnerability 2: Set cookie 'loggedin' to the user ID directly (allows easy faking)
-                setcookie("loggedin", $user['id'], time() + 86400, "/");
-                
+            if ($user && password_verify($password, $user['password'])) {
+                $_SESSION['user_id'] = $user['id'];
+
                 header("Location: index.php");
                 exit;
             } else {
                 $error = "Invalid username or password.";
             }
         } catch (PDOException $e) {
-            $error = "Login failed: " . $e->getMessage();
+            $error = "Login failed.";
         }
     }
 }
@@ -72,8 +67,7 @@ if (isset($_GET['username']) && isset($_GET['password'])) {
                 </div>
             <?php endif; ?>
 
-            <!-- Vulnerability 5: Using GET method for form submission -->
-            <form method="GET" action="login.php">
+            <form method="POST" action="login.php">
                 <div class="field">
                     <label class="label">Username</label>
                     <div class="control">
@@ -100,3 +94,4 @@ if (isset($_GET['username']) && isset($_GET['password'])) {
     </div>
 </body>
 </html>
+
