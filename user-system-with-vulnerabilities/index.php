@@ -1,29 +1,29 @@
 <?php
 // index.php - Main Note Dashboard
+session_start();
 require_once 'db.php';
 
 $user = null;
-// Vulnerability 2: Authenticating user solely based on the 'loggedin' cookie value (user ID)
-if (isset($_COOKIE['loggedin'])) {
-    $user_id = $_COOKIE['loggedin'];
+
+if (isset($_SESSION['user_id'])) {
     try {
         $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$user_id]);
+        $stmt->execute([$_SESSION['user_id']]);
         $user = $stmt->fetch();
     } catch (PDOException $e) {
-        // Silent fail, user remains null
+        $user = null;
     }
 }
 
-// Fetch notes if user is logged in
 $notes = [];
+
 if ($user) {
     try {
         $stmt = $db->prepare("SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC");
         $stmt->execute([$user['id']]);
         $notes = $stmt->fetchAll();
     } catch (PDOException $e) {
-        // Silent fail
+        $notes = [];
     }
 }
 ?>
@@ -55,7 +55,6 @@ if ($user) {
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
         <div class="container">
             <div class="navbar-brand">
@@ -69,9 +68,13 @@ if ($user) {
                     <div class="navbar-item">
                         <div class="buttons">
                             <?php if ($user): ?>
-                                <span class="has-text-light mr-4">Logged in as: <strong><?php echo htmlspecialchars($user['username']); ?></strong></span>
-                                <!-- Vulnerability 3: Simple logout link with GET request and no token verification -->
-                                <a href="logout.php" class="button is-danger is-light">Log out</a>
+                                <span class="has-text-light mr-4">
+                                    Logged in as: <strong><?php echo htmlspecialchars($user['username']); ?></strong>
+                                </span>
+
+                                <form method="POST" action="logout.php" style="display:inline;">
+                                    <button type="submit" class="button is-danger is-light">Log out</button>
+                                </form>
                             <?php else: ?>
                                 <a href="login.php" class="button is-primary">Log in</a>
                                 <a href="register.php" class="button is-light">Register</a>
@@ -84,7 +87,6 @@ if ($user) {
     </nav>
 
     <?php if (!$user): ?>
-        <!-- Hero Section for Guest users -->
         <section class="hero is-medium is-bold">
             <div class="hero-body">
                 <div class="container has-text-centered">
@@ -101,7 +103,6 @@ if ($user) {
             </div>
         </section>
     <?php else: ?>
-        <!-- Main dashboard content for authenticated users -->
         <section class="section">
             <div class="container">
                 <div class="columns is-vcentered mb-5">
@@ -128,6 +129,7 @@ if ($user) {
                                             <?php echo htmlspecialchars($note['title']); ?>
                                         </p>
                                     </header>
+
                                     <div class="card-content">
                                         <div class="content">
                                             <p><?php echo nl2br(htmlspecialchars($note['content'])); ?></p>
@@ -136,9 +138,11 @@ if ($user) {
                                             </p>
                                         </div>
                                     </div>
+
                                     <footer class="card-footer">
-                                        <!-- Vulnerability 4: Edit note links using simple GET parameter with no ownership validation -->
-                                        <a href="editnote.php?noteid=<?php echo $note['id']; ?>" class="card-footer-item has-text-link">Edit / Delete</a>
+                                        <a href="editnote.php?noteid=<?php echo htmlspecialchars($note['id']); ?>" class="card-footer-item has-text-link">
+                                            Edit / Delete
+                                        </a>
                                     </footer>
                                 </div>
                             </div>
