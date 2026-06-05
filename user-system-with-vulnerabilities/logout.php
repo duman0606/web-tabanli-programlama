@@ -1,12 +1,16 @@
 <?php
-// logout.php - Terminate user session
-// Vulnerability 3: Simple GET request logout page without token/CSRF checks.
-// Anyone can cause a logout by linking a logged-in user to this script (e.g. via an img src or link).
+// logout.php - Secure logout
+session_start();
 
-// Clear the loggedin cookie by setting its expiration time to the past
-setcookie("loggedin", "", time() - 3600, "/");
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $_SESSION = [];
 
-// Redirect the user back to the index page
+    session_destroy();
+
+    header("Location: index.php");
+    exit;
+}
+
 header("Location: index.php");
 exit;
 ?>
